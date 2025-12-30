@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jellyfin
+  namespace: jellyfin 
   labels:
     app: jellyfin
 spec:
@@ -14,6 +15,11 @@ spec:
       labels:
         app: jellyfin
     spec:
+      # -------------------------------------------------------
+      # [핵심 수정] eks-app-node 노드 그룹에만 Pod를 배치합니다.
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: eks-app-node
+      # -------------------------------------------------------
       initContainers:
       - name: download-movie
         image: busybox
