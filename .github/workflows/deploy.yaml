@@ -44,5 +44,6 @@ jobs:
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
           git add manifests/jellyfin.yaml
+          # [중요] 커밋 메시지에 [skip ci] 또는 [ci skip]을 포함합니다.
           git commit -m "Update image tag to ${{ github.sha }} [skip ci]"
           git push
