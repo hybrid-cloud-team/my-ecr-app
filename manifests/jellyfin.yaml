@@ -27,7 +27,7 @@ spec:
       initContainers:
       - name: download-movie
         # [수정] 충돌 방지를 위해 무거운 .NET 이미지 대신 가벼운 alpine 사용
-        image: alpine:latest
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:1de971d253fd99028431339b9c49fb57e2046d1d
         command: ["sh", "-c"]
         args:
           - |
@@ -45,7 +45,7 @@ spec:
       containers:
       - name: jellyfin
         # 이 부분은 GitHub Actions가 빌드 시 자동으로 최신 태그로 업데이트합니다.
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:latest
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:1de971d253fd99028431339b9c49fb57e2046d1d
         ports:
         - containerPort: 8096
         volumeMounts:
