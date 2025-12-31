@@ -21,4 +21,4 @@ ENV ASPNETCORE_URLS=http://+:8096
 EXPOSE 8096
 
 # [중요] 로그에서 확인된 실제 파일명(소문자)으로 수정함
-ENTRYPOINT ["dotnet", "jellyfin.dll", "--nowebclient"]
+ENTRYPOINT ["dotnet", "jellyfin.dll"]
