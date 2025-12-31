@@ -5,6 +5,9 @@ metadata:
   namespace: jellyfin
 spec:
   replicas: 1
+  # 파드 교체 전략: 기존 파드를 먼저 죽여서 자리를 확보하도록 설정
+  strategy:
+    type: Recreate 
   selector:
     matchLabels:
       app: jellyfin
@@ -13,41 +16,34 @@ spec:
       labels:
         app: jellyfin
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: eks.amazonaws.com/nodegroup
-                operator: In
-                values:
-                - eks-app-node
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - worker0.okd4.cluster.local
-                - worker1.okd4.cluster.local
-      imagePullSecrets:
-      - name: aws-ecr-secret
-      
+      # 파드를 특정 노드(eks-app-node)에 배치
+      nodeSelector:
+        eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:92e96469014eb4d45c05d3eb1eee873fd852873b
+        # 이 이미지 태그는 GitHub Action이 최신 SHA 값으로 자동 교체합니다.
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:ba4f2c919b86a165f8027cce228d2bdcd90cd2db
         ports:
         - containerPort: 8096
           name: http
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:8096"
+        # Pending을 해결하기 위해 리소스 예약량을 현실적으로 낮췄습니다.
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "500m"
+            cpu: "100m"
+            memory: "256Mi"
           limits:
+            cpu: "500m"
             memory: "1Gi"
-            cpu: "1000m"
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: jellyfin-service
+  namespace: jellyfin
 spec:
   selector:
     app: jellyfin
