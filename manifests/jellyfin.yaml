@@ -19,7 +19,7 @@ spec:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:ba4f2c919b86a165f8027cce228d2bdcd90cd2db
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:72065ff1a591df83592c6b2f6879ce1bfb390a89
         ports:
         - containerPort: 8096
         env:
