@@ -21,7 +21,7 @@ spec:
       containers:
       - name: jellyfin
         # 이미지 주소는 GitHub Action에 의해 최신 태그로 자동 교체됩니다.
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:969c621b9c00e340a24cf8e980634d423f8a8f2c
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:d097c69e42c31b7c749b05cd7a881097f0c8c0f5
         ports:
         - containerPort: 8096
           name: http
