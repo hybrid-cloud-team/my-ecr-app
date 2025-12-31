@@ -22,7 +22,7 @@ spec:
       containers:
       - name: jellyfin
         # 이 이미지 태그는 GitHub Action이 최신 SHA 값으로 자동 교체합니다.
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:ba4f2c919b86a165f8027cce228d2bdcd90cd2db
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:11bb39b97b7998dd6659ac0c9bb91898509d42bb
         ports:
         - containerPort: 8096
           name: http
