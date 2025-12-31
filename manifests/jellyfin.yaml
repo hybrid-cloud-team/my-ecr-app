@@ -5,7 +5,7 @@ metadata:
   namespace: jellyfin
 spec:
   replicas: 1
-  revisionHistoryLimit: 1 # 지저분한 RS 자동 정리
+  revisionHistoryLimit: 1  # 지저분한 RS 기록을 1개만 남기고 자동 정리합니다.
   strategy:
     type: Recreate 
   selector:
@@ -20,26 +20,25 @@ spec:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:8cc842b7280d0b30a04bc7561825ebdeac9094e1
+        # GitHub Action에서 빌드된 최신 이미지를 사용합니다.
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:latest
         ports:
         - containerPort: 8096
-        env:
-        - name: ASPNETCORE_URLS
-          value: "http://+:8096"
-        # 웹 클라이언트 없이 서버만 띄울 때 서버가 죽지 않도록 체크 방식을 변경
-        startupProbe:
-          tcpSocket:
-            port: 8096
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          failureThreshold: 20
         resources:
           requests:
-            cpu: "200m"
+            cpu: "300m"
             memory: "512Mi"
           limits:
             cpu: "1000m"
             memory: "1Gi"
+        # 이제 웹 클라이언트가 포함되어 있으므로 실제 헬스체크 경로를 바라봅니다.
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8096
+          initialDelaySeconds: 20  # 초기 구동 시간을 넉넉히 줍니다.
+          periodSeconds: 10
+          failureThreshold: 15
 ---
 apiVersion: v1
 kind: Service
@@ -51,6 +50,6 @@ spec:
     app: jellyfin
   ports:
   - protocol: TCP
-    port: 80
-    targetPort: 8096
+    port: 80         # 외부 접속 포트
+    targetPort: 8096 # 컨테이너 내부 포트
   type: LoadBalancer
