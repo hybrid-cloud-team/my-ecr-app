@@ -20,7 +20,7 @@ spec:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:b4296eff31be960a7b96d0a1a1aeab795db4df52
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:latest
         ports:
         - containerPort: 8096
         resources:
@@ -47,8 +47,6 @@ spec:
     app: jellyfin
   ports:
   - protocol: TCP
-    port: 80         # 로드밸런서 주소로 들어오는 포트
-    targetPort: 8096 # 컨테이너 내부 포트
-    # [수정] 노드포트를 32096으로 강제 지정하여 통로를 확실히 뚫습니다.
-    nodePort: 32096  
+    port: 8096       # [수정] 외부 접속 포트를 8096으로 변경
+    targetPort: 8096 # 컨테이너 포트 8096
   type: LoadBalancer
