@@ -20,18 +20,20 @@ spec:
       labels:
         app: jellyfin
     spec:
-      # 특정 노드 그룹에 배치 (eks-app-node)
+      # 특정 노드 그룹에 배치
       nodeSelector:
         eks.amazonaws.com/nodegroup: eks-app-node
       
       initContainers:
       - name: download-movie
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:276c0a2a8ace0096606dc1cb292407c2fdc62072
+        # [수정] 충돌 방지를 위해 무거운 .NET 이미지 대신 가벼운 alpine 사용
+        image: alpine:latest
         command: ["sh", "-c"]
         args:
           - |
             echo "영화 다운로드 중..."
             mkdir -p /media/movies/BigBuckBunny
+            # alpine 환경에 맞춰 wget 실행 (기본 내장됨)
             if [ ! -f /media/movies/BigBuckBunny/movie.mp4 ]; then
               wget -O /media/movies/BigBuckBunny/movie.mp4 https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_5MB.mp4
             fi
@@ -42,7 +44,8 @@ spec:
           
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:276c0a2a8ace0096606dc1cb292407c2fdc62072
+        # 이 부분은 GitHub Actions가 빌드 시 자동으로 최신 태그로 업데이트합니다.
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:latest
         ports:
         - containerPort: 8096
         volumeMounts:
@@ -70,10 +73,8 @@ metadata:
   name: jellyfin-service
   namespace: jellyfin
   annotations:
-    # [수정] 외부 접속이 가능하도록 Internet-facing 설정 추가
+    # 외부 접속용 로드밸런서 설정
     service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
-    # (선택사항) NLB를 사용하고 싶다면 아래 주석 추가
-    # service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
 spec:
   type: LoadBalancer
   ports:
