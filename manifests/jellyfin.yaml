@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jellyfin
-  namespace: jellyfin  
 spec:
   replicas: 1
   selector:
@@ -13,14 +12,14 @@ spec:
       labels:
         app: jellyfin
     spec:
-      # --- 노드 그룹 고정 설정 ---
+      # 파드를 eks-app-node 노드에 배치
       nodeSelector:
         eks.amazonaws.com/nodegroup: eks-app-node
       
       containers:
       - name: jellyfin
-        # 아래 image 주소는 GitHub Action에 의해 자동으로 업데이트됩니다.
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:latest 
+        # 아래 주소는 GitHub Action에 의해 자동 업데이트됨
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:latest
         ports:
         - containerPort: 8096
           name: http
@@ -31,7 +30,6 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "1000m"
-
 ---
 apiVersion: v1
 kind: Service
@@ -42,6 +40,6 @@ spec:
     app: jellyfin
   ports:
   - protocol: TCP
-    port: 80      # 외부에서 접속할 포트
-    targetPort: 8096  # 컨테이너 내부 포트
-  type: LoadBalancer  # EKS에서 외부 접속을 위해 필요
+    port: 80
+    targetPort: 8096
+  type: LoadBalancer
