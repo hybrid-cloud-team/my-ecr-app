@@ -8,7 +8,7 @@ jobs:
   ci-cd:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # GitHub에 수정한 YAML을 다시 커밋하기 위해 필요
+      contents: write
 
     steps:
       - name: Checkout code
@@ -32,18 +32,20 @@ jobs:
           ECR_REPOSITORY: my-ecr-app
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          # 캐시 없이 깨끗하게 빌드하는 것을 권장 (파일 누락 방지)
+          docker build --no-cache -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Update Kubernetes resources
         run: |
-          # manifests/jellyfin.yaml 내의 이미지 정보를 새 태그로 자동 교체
+          # 1. 이미지 태그 업데이트 (이미지 주소 전체를 정확히 매칭해서 교체)
           sed -i "s|image: .*|image: ${{ steps.build-image.outputs.image }}|g" manifests/jellyfin.yaml
           
+          # 2. Git 커밋 및 푸시
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
           git add manifests/jellyfin.yaml
-          # [중요] 커밋 메시지에 [skip ci] 또는 [ci skip]을 포함합니다.
-          git commit -m "Update image tag to ${{ github.sha }} [skip ci]"
-          git push
+          
+          # [중요] 변경사항이 있을 때만 커밋 (에러 방지)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update image tag to ${{ github.sha }} [skip ci]" && git push)
