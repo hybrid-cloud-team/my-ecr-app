@@ -5,7 +5,7 @@ metadata:
   namespace: jellyfin
 spec:
   replicas: 1
-  # 파드 교체 전략: 기존 파드를 먼저 죽여서 자리를 확보하도록 설정
+  # 파드 교체 전략: 기존 파드를 먼저 종료하여 자원을 확보한 후 새 파드를 생성
   strategy:
     type: Recreate 
   selector:
@@ -16,24 +16,24 @@ spec:
       labels:
         app: jellyfin
     spec:
-      # 파드를 특정 노드(eks-app-node)에 배치
+      # 파드를 eks-app-node 노드 그룹에 배치
       nodeSelector:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        # 이 이미지 태그는 GitHub Action이 최신 SHA 값으로 자동 교체합니다.
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:11bb39b97b7998dd6659ac0c9bb91898509d42bb
+        # GitHub Action이 최신 이미지 SHA 값으로 자동 업데이트합니다.
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:ba4f2c919b86a165f8027cce228d2bdcd90cd2db
         ports:
         - containerPort: 8096
           name: http
         env:
         - name: ASPNETCORE_URLS
           value: "http://+:8096"
-        # Pending을 해결하기 위해 리소스 예약량을 현실적으로 낮췄습니다.
+        # Pending을 해결하기 위해 리소스 예약량을 최소화했습니다.
         resources:
           requests:
-            cpu: "100m"
-            memory: "256Mi"
+            cpu: "50m"      # 최소 CPU 요구량 하향
+            memory: "128Mi"  # 최소 메모리 요구량 하향
           limits:
             cpu: "500m"
             memory: "1Gi"
