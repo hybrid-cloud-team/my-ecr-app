@@ -27,7 +27,7 @@ spec:
       initContainers:
       - name: download-movie
         # [수정] 충돌 방지를 위해 무거운 .NET 이미지 대신 가벼운 alpine 사용
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:ef04ef7be963193d8a80aae03b7c8384345f9880
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:0a70b15ec4c8ee352dc9b38162b923267142c0e5
         command: ["sh", "-c"]
         args:
           - |
@@ -44,7 +44,7 @@ spec:
           
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:ef04ef7be963193d8a80aae03b7c8384345f9880
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:0a70b15ec4c8ee352dc9b38162b923267142c0e5
         ports:
         - containerPort: 8096
         volumeMounts:
