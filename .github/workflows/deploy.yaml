@@ -14,7 +14,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0 # 전체 히스토리를 가져와서 rebase 충돌 방지
+          fetch-depth: 0
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -40,22 +40,21 @@ jobs:
 
       - name: Update Kubernetes resources
         run: |
-          # Git 설정
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
           
-          # 1. 최신 상태를 가져오기 (rebase로 히스토리 정렬)
-          git pull origin main --rebase
+          # 최신 내용 강제로 가져와서 내 수정사항 덮어쓰기
+          git fetch origin main
+          git reset --hard origin/main
 
-          # 2. 이미지 태그 업데이트
+          # 이미지 태그 업데이트
           sed -i "s|image: .*|image: ${{ steps.build-image.outputs.image }}|g" manifests/jellyfin.yaml
           
-          # 3. 변경사항이 있는 경우에만 커밋 및 푸시
           git add manifests/jellyfin.yaml
           if [ -n "$(git status --porcelain)" ]; then
             git commit -m "Update image tag to ${{ github.sha }} [skip ci]"
-            # 푸시 실패 시 한 번 더 최신화 후 시도
-            git push origin main || (git pull origin main --rebase && git push origin main)
+            # 충돌 발생 시 강제로 푸시하여 ArgoCD가 최신 이미지를 보게 함
+            git push origin main --force
           else
             echo "No changes to commit"
           fi
