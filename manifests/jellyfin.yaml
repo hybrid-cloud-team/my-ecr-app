@@ -12,13 +12,25 @@ spec:
       labels:
         app: jellyfin
     spec:
-      # 파드를 eks-app-node 노드에 배치
-      nodeSelector:
-        eks.amazonaws.com/nodegroup: eks-app-node
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: eks.amazonaws.com/nodegroup
+                operator: In
+                values:
+                - eks-app-node
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - worker0.okd4.cluster.local
+                - worker1.okd4.cluster.local
+      imagePullSecrets:
+      - name: aws-ecr-secret
       
       containers:
       - name: jellyfin
-        # 아래 주소는 GitHub Action에 의해 자동 업데이트됨
         image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:8a4386d426a5ff99552db5a15aef0e1d0d7c7e26
         ports:
         - containerPort: 8096
