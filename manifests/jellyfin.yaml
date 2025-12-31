@@ -20,7 +20,8 @@ spec:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:3f1280baffab603d22a413eb5dd3a8c6daf4094e
+        # 최신 이미지를 사용합니다.
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:latest
         ports:
         - containerPort: 8096
         resources:
@@ -42,11 +43,14 @@ kind: Service
 metadata:
   name: jellyfin-service
   namespace: jellyfin
+  annotations:
+    # [핵심] 로드밸런서를 인터넷 접속용으로 생성하게 합니다.
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 spec:
   selector:
     app: jellyfin
   ports:
   - protocol: TCP
-    port: 8096       # [수정] 외부 접속 포트를 8096으로 변경
-    targetPort: 8096 # 컨테이너 포트 8096
+    port: 80         # 브라우저 접속 포트
+    targetPort: 8096 # 젤리핀 서버 포트
   type: LoadBalancer
