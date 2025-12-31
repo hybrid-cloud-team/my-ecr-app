@@ -5,7 +5,7 @@ metadata:
   namespace: jellyfin
 spec:
   replicas: 1
-  revisionHistoryLimit: 1  # 구버전 RS 기록을 1개만 남기고 자동 삭제
+  revisionHistoryLimit: 1
   strategy:
     type: Recreate 
   selector:
@@ -20,7 +20,6 @@ spec:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        # GitHub Action이 빌드한 최신 이미지를 사용
         image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:325f43fa2a2c08a0b6ba0d21f81ef4296c7cc3f4
         ports:
         - containerPort: 8096
@@ -31,7 +30,6 @@ spec:
           limits:
             cpu: "1000m"
             memory: "1Gi"
-        # 가장 확실한 상태 체크 방식 (포트가 열려있는지 확인)
         startupProbe:
           tcpSocket:
             port: 8096
@@ -49,6 +47,8 @@ spec:
     app: jellyfin
   ports:
   - protocol: TCP
-    port: 80         # 브라우저 접속용 (http://주소)
+    port: 80         # 로드밸런서 주소로 들어오는 포트
     targetPort: 8096 # 컨테이너 내부 포트
+    # [수정] 노드포트를 32096으로 강제 지정하여 통로를 확실히 뚫습니다.
+    nodePort: 32096  
   type: LoadBalancer
