@@ -6,7 +6,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate # 기존에 꼬인 파드를 완전히 삭제 후 새로 생성 (자원 확보용)
+    type: Recreate 
   selector:
     matchLabels:
       app: jellyfin
@@ -15,28 +15,29 @@ spec:
       labels:
         app: jellyfin
     spec:
-      # [필수] 지정하신 eks-app-node 노드 그룹으로 배정
       nodeSelector:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        # 이미지 주소는 GitHub Action에 의해 최신 태그로 자동 교체됩니다.
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:d097c69e42c31b7c749b05cd7a881097f0c8c0f5
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:ba4f2c919b86a165f8027cce228d2bdcd90cd2db
         ports:
         - containerPort: 8096
           name: http
-        env:
-        - name: ASPNETCORE_URLS
-          value: "http://+:8096"
-        # Pending 문제를 해결하기 위해 리소스 예약량을 최소화(최종)
+        # 초기 구동 속도를 위해 리소스를 살짝 높였습니다.
         resources:
           requests:
-            cpu: "50m"
-            memory: "128Mi"
+            cpu: "200m"
+            memory: "512Mi"
           limits:
-            cpu: "500m"
+            cpu: "1000m"
             memory: "1Gi"
-
+        # 프로그램이 완전히 켜질 때까지 기다려주는 체크 포인트
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8096
+          failureThreshold: 30
+          periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
