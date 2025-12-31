@@ -1,15 +1,8 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: jellyfin
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jellyfin
-  namespace: jellyfin 
-  labels:
-    app: jellyfin
+  namespace: jellyfin  
 spec:
   replicas: 1
   selector:
@@ -20,65 +13,35 @@ spec:
       labels:
         app: jellyfin
     spec:
-      # 특정 노드 그룹에 배치
+      # --- 노드 그룹 고정 설정 ---
       nodeSelector:
         eks.amazonaws.com/nodegroup: eks-app-node
       
-      initContainers:
-      - name: download-movie
-        # [수정] 충돌 방지를 위해 무거운 .NET 이미지 대신 가벼운 alpine 사용
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:0a70b15ec4c8ee352dc9b38162b923267142c0e5
-        command: ["sh", "-c"]
-        args:
-          - |
-            echo "영화 다운로드 중..."
-            mkdir -p /media/movies/BigBuckBunny
-            # alpine 환경에 맞춰 wget 실행 (기본 내장됨)
-            if [ ! -f /media/movies/BigBuckBunny/movie.mp4 ]; then
-              wget -O /media/movies/BigBuckBunny/movie.mp4 https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/1080/Big_Buck_Bunny_1080_10s_5MB.mp4
-            fi
-            echo "다운로드 완료!"
-        volumeMounts:
-        - name: media-data
-          mountPath: /media
-          
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:0a70b15ec4c8ee352dc9b38162b923267142c0e5
+        # 아래 image 주소는 GitHub Action에 의해 자동으로 업데이트됩니다.
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:latest 
         ports:
         - containerPort: 8096
-        volumeMounts:
-        - name: config-data
-          mountPath: /config
-        - name: media-data
-          mountPath: /media
+          name: http
         resources:
           requests:
-            memory: "1Gi"
+            memory: "512Mi"
             cpu: "500m"
           limits:
-            memory: "2Gi" 
+            memory: "1Gi"
             cpu: "1000m"
-            
-      volumes:
-      - name: config-data
-        emptyDir: {}
-      - name: media-data
-        emptyDir: {}
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: jellyfin-service
-  namespace: jellyfin
-  annotations:
-    # 외부 접속용 로드밸런서 설정
-    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-    targetPort: 8096
-    protocol: TCP
   selector:
     app: jellyfin
+  ports:
+  - protocol: TCP
+    port: 80      # 외부에서 접속할 포트
+    targetPort: 8096  # 컨테이너 내부 포트
+  type: LoadBalancer  # EKS에서 외부 접속을 위해 필요
