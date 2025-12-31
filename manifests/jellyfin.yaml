@@ -21,7 +21,7 @@ spec:
       containers:
       - name: jellyfin
         # GitHub Action에서 빌드된 최신 이미지를 사용합니다.
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:95e1986cdb7a55e6bee03f6d3b17d8b4289c0925
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:9f85de7db35c039d4a5449307fa5f0261fa4b23a
         ports:
         - containerPort: 8096
         resources:
