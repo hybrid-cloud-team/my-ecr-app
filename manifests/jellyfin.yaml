@@ -26,7 +26,7 @@ spec:
       
       initContainers:
       - name: download-movie
-        image: busybox
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:276c0a2a8ace0096606dc1cb292407c2fdc62072
         command: ["sh", "-c"]
         args:
           - |
@@ -42,7 +42,7 @@ spec:
           
       containers:
       - name: jellyfin
-        image: jellyfin/jellyfin:latest
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:276c0a2a8ace0096606dc1cb292407c2fdc62072
         ports:
         - containerPort: 8096
         volumeMounts:
