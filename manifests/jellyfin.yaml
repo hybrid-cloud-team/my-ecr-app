@@ -31,7 +31,7 @@ spec:
       
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:8a4386d426a5ff99552db5a15aef0e1d0d7c7e26
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:80894650266c7d402c2a702e7b677403d2086fd6
         ports:
         - containerPort: 8096
           name: http
