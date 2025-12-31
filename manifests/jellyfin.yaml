@@ -5,6 +5,7 @@ metadata:
   namespace: jellyfin
 spec:
   replicas: 1
+  revisionHistoryLimit: 1 # 지저분한 RS 자동 정리
   strategy:
     type: Recreate 
   selector:
@@ -19,11 +20,19 @@ spec:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:d52946d93aa9d6077bb84735e739644d035afe71
+        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:ba4f2c919b86a165f8027cce228d2bdcd90cd2db
         ports:
         - containerPort: 8096
-          name: http
-        # 초기 구동 속도를 위해 리소스를 살짝 높였습니다.
+        env:
+        - name: ASPNETCORE_URLS
+          value: "http://+:8096"
+        # 웹 클라이언트 없이 서버만 띄울 때 서버가 죽지 않도록 체크 방식을 변경
+        startupProbe:
+          tcpSocket:
+            port: 8096
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 20
         resources:
           requests:
             cpu: "200m"
@@ -31,13 +40,6 @@ spec:
           limits:
             cpu: "1000m"
             memory: "1Gi"
-        # 프로그램이 완전히 켜질 때까지 기다려주는 체크 포인트
-        startupProbe:
-          httpGet:
-            path: /health
-            port: 8096
-          failureThreshold: 30
-          periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
