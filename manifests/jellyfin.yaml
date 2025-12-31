@@ -44,8 +44,7 @@ spec:
           
       containers:
       - name: jellyfin
-        # 이 부분은 GitHub Actions가 빌드 시 자동으로 최신 태그로 업데이트합니다.
-        image: 635014547592.dkr.ecr.ap-northeast-2.amazonaws.com/my-ecr-app:8a29bad434a55fa173999c1e4db22234211ee445
+        image: jellyfin/jellyfin:latest
         ports:
         - containerPort: 8096
         volumeMounts:
