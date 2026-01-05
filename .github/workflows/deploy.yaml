@@ -16,7 +16,7 @@ jobs:
       ECR_REPOSITORY: jellyfin
       IMAGE_TAG: ${{ github.sha }}
 
-      DEPLOY_REPO: hybrid-cloud-team/jellyfin-deploy
+      DEPLOY_REPO: hybrid-cloud-team/my-ecr-app
       DEPLOY_BRANCH: main
       MANIFEST_PATH: manifests/jellyfin.yaml
 
