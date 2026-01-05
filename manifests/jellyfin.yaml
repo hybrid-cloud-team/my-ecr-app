@@ -21,7 +21,7 @@ spec:
       containers:
       - name: jellyfin
         # 최신 이미지를 사용합니다.
-        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:ada42f0e24c7f8c9cdcf209cd44b94c6193f0fcc
+        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:904526e0f99d412f765b97887f86a33ec22d3f06
         ports:
         - containerPort: 8096
         resources:
