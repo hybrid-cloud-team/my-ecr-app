@@ -1,60 +1,69 @@
-name: Build and Deploy to EKS
+name: Build and Update GitOps Repo
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   ci-cd:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+      id-token: write   # ✅ OIDC 필수
+
+    env:
+      AWS_REGION: us-east-1
+      ECR_REPOSITORY: jellyfin
+      IMAGE_TAG: ${{ github.sha }}
+
+      DEPLOY_REPO: hybrid-cloud-team/jellyfin-deploy
+      DEPLOY_BRANCH: main
+      MANIFEST_PATH: manifests/jellyfin.yaml
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+      - name: Checkout app source repo
+        uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - name: Configure AWS credentials (OIDC AssumeRole)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-2
+          role-to-assume: arn:aws:iam::635014547592:role/github-actions-ecr-jellyfin
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: my-ecr-app
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
-      - name: Update Kubernetes resources
+      - name: Checkout deploy repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DEPLOY_REPO }}
+          ref: ${{ env.DEPLOY_BRANCH }}
+          token: ${{ secrets.DEPLOY_REPO_TOKEN }}
+          path: deploy-repo
+
+      - name: Update image tag in deploy repo
         run: |
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
-          
-          # 최신 내용 강제로 가져와서 내 수정사항 덮어쓰기
-          git fetch origin main
-          git reset --hard origin/main
+          cd deploy-repo
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
 
-          # 이미지 태그 업데이트
-          sed -i "s|image: .*|image: ${{ steps.build-image.outputs.image }}|g" manifests/jellyfin.yaml
-          
-          git add manifests/jellyfin.yaml
+          sed -i "s|image: .*|image: ${{ steps.build-image.outputs.image }}|g" "${MANIFEST_PATH}"
+
+          git add "${MANIFEST_PATH}"
           if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "Update image tag to ${{ github.sha }} [skip ci]"
-            # 충돌 발생 시 강제로 푸시하여 ArgoCD가 최신 이미지를 보게 함
-            git push origin main --force
+            git commit -m "Update jellyfin image to ${{ github.sha }}"
+            git push origin "${DEPLOY_BRANCH}"
           else
             echo "No changes to commit"
           fi
