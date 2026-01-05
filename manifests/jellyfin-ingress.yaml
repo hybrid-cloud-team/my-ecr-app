@@ -9,10 +9,10 @@ metadata:
     # ALB 설정
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
 
     # HTTPS (나중에 ACM 연결 가능)
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # alb.ingress.kubernetes.io/ssl-redirect: '443'
 
     # 헬스체크
     alb.ingress.kubernetes.io/healthcheck-path: /
