@@ -3,6 +3,8 @@ name: Build and Update GitOps Repo
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "manifests/**"
 
 jobs:
   ci-cd:
