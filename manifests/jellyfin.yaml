@@ -56,4 +56,4 @@ spec:
   - protocol: TCP
     port: 80         # 브라우저 접속 포트
     targetPort: 8096 # 젤리핀 서버 포트
-  type: LoadBalancer
+  type: ClusterIP
