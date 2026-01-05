@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write   # ✅ OIDC 필수
+      id-token: write   # ✅ AWS OIDC
 
     env:
       AWS_REGION: us-east-1
@@ -44,19 +44,29 @@ jobs:
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
-      - name: Checkout deploy repo
+      # ✅ PAT 없이 GitHub App으로 토큰 발급
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: hybrid-cloud-team
+
+      - name: Checkout deploy repo (GitHub App token)
         uses: actions/checkout@v4
         with:
           repository: ${{ env.DEPLOY_REPO }}
           ref: ${{ env.DEPLOY_BRANCH }}
-          token: ${{ secrets.DEPLOY_REPO_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}   # ✅ 여기!
           path: deploy-repo
+          fetch-depth: 0
 
       - name: Update image tag in deploy repo
         run: |
           cd deploy-repo
           git config user.email "action@github.com"
-          git config user.name "GitHub Action"
+          git config user.name "GitOps Bot"
 
           sed -i "s|image: .*|image: ${{ steps.build-image.outputs.image }}|g" "${MANIFEST_PATH}"
 
