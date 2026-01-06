@@ -18,7 +18,8 @@ jobs:
       DEPLOY_REPO: hybrid-cloud-team/my-ecr-app
       DEPLOY_BRANCH: main
       MANIFEST_PATH: manifests/jellyfin.yaml
-      MEDIA_MANIFEST_PATH: manifests/media-api.yaml
+      # [수정됨] 실제 파일이 있는 경로로 변경했습니다 (폴더/02-deploy-svc.yaml)
+      MEDIA_MANIFEST_PATH: manifests/media-api/02-deploy-svc.yaml
 
     steps:
       - name: Checkout app source repo
