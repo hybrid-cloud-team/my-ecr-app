@@ -59,7 +59,7 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="Serilog.Sinks.Graylog" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0-preview.2.efcore.9.0.0" /> 
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" VersionOverride="9.0.0-preview.2.efcore.9.0.0" /> 
   </ItemGroup>
 
   <ItemGroup>
