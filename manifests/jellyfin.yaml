@@ -27,9 +27,9 @@ spec:
         image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:549d6bc2cb06154b8e78c55282935eeca2b795bb
         imagePullPolicy: Always
         
-        # [핵심 추가] 이 한 줄이 젤리핀을 강제로 MySQL 모드로 전환합니다.
-        args:
-          - "--Database:Type=MySql"
+        # ❌ [삭제] 이 args 부분이 문제였습니다! 지워주세요!
+        # args:
+        #   - "--Database:Type=MySql"
 
         ports:
         - containerPort: 8096
@@ -39,6 +39,10 @@ spec:
           mountPath: /config
 
         env:
+          # ✅ [추가] args 대신 환경변수로 넣어야 서버가 죽지 않고 인식합니다.
+          - name: JELLYFIN_Database__Type
+            value: "MySql"
+            
           # [유지] 재료 변수들
           - name: DB_HOST
             valueFrom:
@@ -61,10 +65,9 @@ spec:
                 name: rds-secret
                 key: DB_PASSWORD
           
-          # [유지] 완성된 연결 문자열 (이건 잘 작동했습니다)
+          # [유지] 완성된 연결 문자열
           - name: JELLYFIN_ConnectionStrings__JellyfinDb
             value: "Server=$(DB_HOST);Database=$(DB_NAME);User=$(DB_USER);Password=$(DB_PASSWORD);SslMode=None"
-            # (끝에 세미콜론 제거함: 더 안전함)
 
         resources:
           requests:
@@ -83,19 +86,3 @@ spec:
       volumes:
       - name: clean-config-vol
         emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: jellyfin-service
-  namespace: jellyfin
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
-spec:
-  selector:
-    app: jellyfin
-  ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 8096
-  type: ClusterIP
