@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media-api
+  namespace: media
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: media-api
+  template:
+    metadata:
+      labels:
+        app: media-api
+    spec:
+      serviceAccountName: media-api-sa
+      containers:
+        - name: media-api
+          image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin-media-api:0.1.0
+          ports:
+            - containerPort: 8000
+          env:
+            - name: AWS_REGION
+              value: us-east-1
+            - name: S3_BUCKET
+              value: jellyfin-media-bucket-idac-01   # <-- 너 버킷
+            - name: S3_PREFIX
+              value: uploads/raw
+            - name: PRESIGN_EXPIRE_SECONDS
+              value: "600"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: media-api-svc
+  namespace: media
+spec:
+  type: ClusterIP
+  selector:
+    app: media-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000

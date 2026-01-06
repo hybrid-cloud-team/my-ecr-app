@@ -18,6 +18,7 @@ jobs:
       DEPLOY_REPO: hybrid-cloud-team/my-ecr-app
       DEPLOY_BRANCH: main
       MANIFEST_PATH: manifests/jellyfin.yaml
+      MEDIA_MANIFEST_PATH: manifests/media-api.yaml
 
     steps:
       - name: Checkout app source repo
@@ -43,6 +44,23 @@ jobs:
           docker build --no-cache -t "$IMAGE" .
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          
+      - name: Build, tag, and push media-api image to Amazon ECR
+        id: build-media-api
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          MEDIA_ECR_REPOSITORY="jellyfin-media-api"
+          MEDIA_IMAGE="$ECR_REGISTRY/$MEDIA_ECR_REPOSITORY:${IMAGE_TAG}"
+
+          # 핵심: Dockerfile 경로(-f) + build context(media-api)
+          docker build --no-cache \
+            -f media-api/Dockerfile \
+            -t "$MEDIA_IMAGE" \
+            media-api
+
+          docker push "$MEDIA_IMAGE"
+          echo "image=$MEDIA_IMAGE" >> $GITHUB_OUTPUT
 
       - name: Create GitHub App token
         id: app-token
@@ -65,6 +83,9 @@ jobs:
           cd deploy-repo
           git config user.email "action@github.com"
           git config user.name "GitOps Bot"
+          
+          test -f "${MANIFEST_PATH}" || (echo "Missing ${MANIFEST_PATH}" && exit 1)
+          test -f "${MEDIA_MANIFEST_PATH}" || (echo "Missing ${MEDIA_MANIFEST_PATH}" && exit 1)
 
           # 매니페스트의 이미지를 새 해시로 교체
           sed -i "s|image: .*|image: ${{ steps.build-image.outputs.image }}|g" "${MANIFEST_PATH}"
@@ -73,8 +94,14 @@ jobs:
           if ! grep -q "imagePullPolicy" "${MANIFEST_PATH}"; then
             sed -i "/image: /a \        imagePullPolicy: Always" "${MANIFEST_PATH}"
           fi
+          
+          # ✅ media-api 업데이트 (추가)
+          sed -i "s|image: .*|image: ${{ steps.build-media-api.outputs.image }}|g" "${MEDIA_MANIFEST_PATH}"
+          if ! grep -q "imagePullPolicy" "${MEDIA_MANIFEST_PATH}"; then
+            sed -i "/image: /a \        imagePullPolicy: Always" "${MEDIA_MANIFEST_PATH}"
+          fi
 
-          git add "${MANIFEST_PATH}"
+          git add "${MANIFEST_PATH}" "${MEDIA_MANIFEST_PATH}"
           # [무한루프방지] 커밋 메시지에 [skip ci] 추가
-          git commit -m "Update jellyfin image to ${{ github.sha }} [skip ci]" || echo "No changes"
+          git commit -m "Update images to ${{ github.sha }} [skip ci]" || echo "No changes"
           git push origin "${DEPLOY_BRANCH}"
