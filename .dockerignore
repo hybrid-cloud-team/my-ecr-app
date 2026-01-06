@@ -9,3 +9,6 @@ deployment/*/dist
 deployment/*/pkg-dist
 deployment/collect-dist/
 ci/
+# .dockerignore 파일 내용에 아래 두 줄을 꼭 넣으세요!
+**/obj/
+**/bin/
