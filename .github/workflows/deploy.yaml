@@ -3,8 +3,6 @@ name: Build and Update GitOps Repo
 on:
   push:
     branches: ["main"]
-    # [수정] 무한 루프 방지를 위해 paths-ignore 대신 커밋 메시지 제어를 사용합니다.
-    # 이제 소스 코드 수정을 포함한 모든 푸시가 빌드를 시작합니다.
 
 jobs:
   ci-cd:
@@ -25,7 +23,7 @@ jobs:
       - name: Checkout app source repo
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC AssumeRole)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::635014547592:role/github-actions-ecr-jellyfin
@@ -41,7 +39,8 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          docker build -t "$IMAGE" .
+          # [핵심] 빌드 시 캐시를 완전히 제거하여 수정된 C# 코드가 반드시 반영되게 함
+          docker build --no-cache -t "$IMAGE" .
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
@@ -53,14 +52,13 @@ jobs:
           private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
           owner: hybrid-cloud-team
 
-      - name: Checkout deploy repo (GitHub App token)
+      - name: Checkout deploy repo
         uses: actions/checkout@v4
         with:
           repository: ${{ env.DEPLOY_REPO }}
           ref: ${{ env.DEPLOY_BRANCH }}
           token: ${{ steps.app-token.outputs.token }}
           path: deploy-repo
-          fetch-depth: 0
 
       - name: Update image tag in deploy repo
         run: |
@@ -68,19 +66,15 @@ jobs:
           git config user.email "action@github.com"
           git config user.name "GitOps Bot"
 
-          # 이미지 태그 업데이트
+          # 매니페스트의 이미지를 새 해시로 교체
           sed -i "s|image: .*|image: ${{ steps.build-image.outputs.image }}|g" "${MANIFEST_PATH}"
           
-          # EKS가 새 이미지를 강제로 가져오도록 설정 (없으면 추가)
+          # [중요] Always 설정이 없으면 추가하여 EKS가 새 이미지를 강제로 받게 함
           if ! grep -q "imagePullPolicy" "${MANIFEST_PATH}"; then
             sed -i "/image: /a \        imagePullPolicy: Always" "${MANIFEST_PATH}"
           fi
 
           git add "${MANIFEST_PATH}"
-          if [ -n "$(git status --porcelain)" ]; then
-            # [핵심] 커밋 메시지에 [skip ci]를 넣어 무한 루프를 원천 봉쇄합니다.
-            git commit -m "Update jellyfin image to ${{ github.sha }} [skip ci]"
-            git push origin "${DEPLOY_BRANCH}"
-          else
-            echo "No changes to commit"
-          fi
+          # [무한루프방지] 커밋 메시지에 [skip ci] 추가
+          git commit -m "Update jellyfin image to ${{ github.sha }} [skip ci]" || echo "No changes"
+          git push origin "${DEPLOY_BRANCH}"
