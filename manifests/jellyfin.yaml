@@ -24,7 +24,7 @@ spec:
       containers:
       - name: jellyfin
         # 이미지 태그는 GitHub Action에 의해 자동으로 업데이트됩니다.
-        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:549d6bc2cb06154b8e78c55282935eeca2b795bb
+        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:61430aeddab38725a9d53a12f8d5c7f0c0cb22ea
         imagePullPolicy: Always
         
         # ❌ [삭제] 이 args 부분이 문제였습니다! 지워주세요!
