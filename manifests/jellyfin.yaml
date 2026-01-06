@@ -4,7 +4,8 @@ metadata:
   name: jellyfin
   namespace: jellyfin
 spec:
-  replicas: 2
+  # [수정] 초기화 충돌 방지를 위해 1개로 시작 (성공 후 나중에 2개로 늘리세요)
+  replicas: 1
   revisionHistoryLimit: 1
   strategy:
     type: RollingUpdate
@@ -29,13 +30,17 @@ spec:
         ports:
         - containerPort: 8096
 
-        # [추가] 1. /config 경로를 빈 볼륨으로 덮어씌워서 초기화 상태로 만듦
+        # [유지] /config 경로를 빈 볼륨으로 덮어씌워서 초기화 상태로 만듦
         volumeMounts:
         - name: clean-config-vol
           mountPath: /config
 
-        # --- 여기서부터 RDS 환경 변수 추가 ---
+        # --- 여기서부터 RDS 환경 변수 ---
         env:
+          # [신규 추가] 젤리핀에게 DB Provider가 MySQL임을 강제로 지정
+          - name: JELLYFIN_Database__Type
+            value: "MySql"
+            
           - name: DB_HOST
             valueFrom:
               configMapKeyRef:
@@ -57,6 +62,7 @@ spec:
                 name: rds-secret
                 key: DB_PASSWORD
         # --- 여기까지 추가 ---
+        
         resources:
           requests:
             cpu: "300m"
@@ -71,7 +77,7 @@ spec:
           periodSeconds: 10
           failureThreshold: 15
 
-      # [추가] 2. 파드가 생성될 때마다 깨끗한 빈 볼륨 생성
+      # [유지] 파드가 생성될 때마다 깨끗한 빈 볼륨 생성
       volumes:
       - name: clean-config-vol
         emptyDir: {}
