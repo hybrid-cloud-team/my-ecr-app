@@ -4,7 +4,7 @@ metadata:
   name: jellyfin
   namespace: jellyfin
 spec:
-  # [수정] 초기화 충돌 방지를 위해 1개로 시작 (성공 후 나중에 2개로 늘리세요)
+  # [유지] 초기화 충돌 방지를 위해 1개로 시작
   replicas: 1
   revisionHistoryLimit: 1
   strategy:
@@ -30,17 +30,14 @@ spec:
         ports:
         - containerPort: 8096
 
-        # [유지] /config 경로를 빈 볼륨으로 덮어씌워서 초기화 상태로 만듦
+        # [유지] /config 경로를 빈 볼륨으로 덮어씌움
         volumeMounts:
         - name: clean-config-vol
           mountPath: /config
 
-        # --- 여기서부터 RDS 환경 변수 ---
+        # --- [핵심] RDS 연결 설정 (순서 중요) ---
         env:
-          # [신규 추가] 젤리핀에게 DB Provider가 MySQL임을 강제로 지정
-          - name: JELLYFIN_Database__Type
-            value: "MySql"
-            
+          # 1. 재료가 되는 변수들을 먼저 정의합니다.
           - name: DB_HOST
             valueFrom:
               configMapKeyRef:
@@ -61,7 +58,16 @@ spec:
               secretKeyRef:
                 name: rds-secret
                 key: DB_PASSWORD
-        # --- 여기까지 추가 ---
+          
+          # 2. DB 타입을 MySQL로 강제 지정
+          - name: JELLYFIN_Database__Type
+            value: "MySql"
+
+          # 3. [필살기] 위 변수들을 조합해 완성된 연결 문자열을 직접 주입
+          # SslMode=None을 추가하여 인증서 오류를 방지합니다.
+          - name: JELLYFIN_ConnectionStrings__JellyfinDb
+            value: "Server=$(DB_HOST);Database=$(DB_NAME);User=$(DB_USER);Password=$(DB_PASSWORD);SslMode=None;"
+        # --- 여기까지 ---
         
         resources:
           requests:
@@ -77,7 +83,7 @@ spec:
           periodSeconds: 10
           failureThreshold: 15
 
-      # [유지] 파드가 생성될 때마다 깨끗한 빈 볼륨 생성
+      # [유지] 빈 볼륨 생성
       volumes:
       - name: clean-config-vol
         emptyDir: {}
