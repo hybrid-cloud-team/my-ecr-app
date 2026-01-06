@@ -5,6 +5,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 import boto3
 from botocore.config import Config
+from fastapi import Query
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 BUCKET = os.getenv("S3_BUCKET", "")
@@ -62,14 +63,21 @@ async def upload(file: UploadFile = File(...)):
     })
 
 @app.get("/presign")
-def presign(key: str):
+def presign(
+    key: str = Query(...),
+    content_type: str | None = Query(None),
+):
     if not key:
         raise HTTPException(status_code=400, detail="key is required")
 
+    params = {"Bucket": BUCKET, "Key": key}
+    if content_type:
+        params["ContentType"] = content_type
+
     url = s3.generate_presigned_url(
-        ClientMethod="put_object",     # ✅ 업로드용
-        "get_object",
-        Params={"Bucket": BUCKET, "Key": key},
-        HttpMethod="PUT",              # ✅ PUT로 서명 강제
+        ClientMethod="put_object",
+        Params=params,
+        ExpiresIn=PRESIGN_EXPIRE,
+        HttpMethod="PUT",
     )
     return {"url": url, "expires_in": PRESIGN_EXPIRE}
