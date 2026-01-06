@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Database.Implementations;
 using Jellyfin.Database.Implementations.DbConfiguration;
+using MediaBrowser.Common.Configuration;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -13,15 +16,23 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Database.Providers.Sqlite;
 
 /// <summary>
-/// [수정 사항] 이름은 SqliteDatabaseProvider이지만, 내부 로직을 AWS RDS(MySQL) 접속으로 강제 전환합니다.
+/// Configures jellyfin to use an SQLite database.
 /// </summary>
 [JellyfinDatabaseProviderKey("Jellyfin-SQLite")]
 public sealed class SqliteDatabaseProvider : IJellyfinDatabaseProvider
 {
+    private const string BackupFolderName = "SQLiteBackups";
+    private readonly IApplicationPaths _applicationPaths;
     private readonly ILogger<SqliteDatabaseProvider> _logger;
 
-    public SqliteDatabaseProvider(ILogger<SqliteDatabaseProvider> logger)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqliteDatabaseProvider"/> class.
+    /// </summary>
+    /// <param name="applicationPaths">Service to construct the fallback when the old data path configuration is used.</param>
+    /// <param name="logger">A logger.</param>
+    public SqliteDatabaseProvider(IApplicationPaths applicationPaths, ILogger<SqliteDatabaseProvider> logger)
     {
+        _applicationPaths = applicationPaths;
         _logger = logger;
     }
 
@@ -31,28 +42,71 @@ public sealed class SqliteDatabaseProvider : IJellyfinDatabaseProvider
     /// <inheritdoc/>
     public void Initialise(DbContextOptionsBuilder options, DatabaseConfigurationOptions databaseConfiguration)
     {
-        // [수정 사항] 1. 환경변수에서 RDS 접속 정보를 읽어옵니다.
-        var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
-        var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? "jellyfin";
-        var dbUser = Environment.GetEnvironmentVariable("DB_USER");
-        var dbPass = Environment.GetEnvironmentVariable("DB_PASSWORD");
-
-        // [수정 사항] 2. MySQL용 연결 문자열(Connection String) 생성
-        var connectionString = $"Server={dbHost};Port=3306;Database={dbName};User={dbUser};Password={dbPass};CharSet=utf8mb4;";
-
-        _logger.LogInformation("Connecting to RDS MySQL: {Host}", dbHost);
-
-        // [수정 사항] 3. UseSqlite 대신 UseMySql을 사용하여 RDS에 접속합니다.
-        options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString),
-            mySqlOptions => 
+        static T? GetOption<T>(ICollection<CustomDatabaseOption>? options, string key, Func<string, T> converter, Func<T>? defaultValue = null)
+        {
+            if (options is null)
             {
-                // 마이그레이션 위치를 지정합니다.
-                mySqlOptions.MigrationsAssembly("Jellyfin.Server");
-                // RDS 연결 재시도 로직 추가
-                mySqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(30), null);
-            })
+                return defaultValue is not null ? defaultValue() : default;
+            }
+
+            var value = options.FirstOrDefault(e => e.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (value is null)
+            {
+                return defaultValue is not null ? defaultValue() : default;
+            }
+
+            return converter(value.Value);
+        }
+
+        var customOptions = databaseConfiguration.CustomProviderOptions?.Options;
+
+        var sqliteConnectionBuilder = new SqliteConnectionStringBuilder();
+        sqliteConnectionBuilder.DataSource = Path.Combine(_applicationPaths.DataPath, "jellyfin.db");
+        sqliteConnectionBuilder.Cache = GetOption(customOptions, "cache", Enum.Parse<SqliteCacheMode>, () => SqliteCacheMode.Default);
+        sqliteConnectionBuilder.Pooling = GetOption(customOptions, "pooling", e => e.Equals(bool.TrueString, StringComparison.OrdinalIgnoreCase), () => true);
+        sqliteConnectionBuilder.DefaultTimeout = GetOption(customOptions, "command-timeout", int.Parse, () => 30);
+
+        var connectionString = sqliteConnectionBuilder.ToString();
+
+        // Log SQLite connection parameters
+        _logger.LogInformation("SQLite connection string: {ConnectionString}", connectionString);
+
+        options
+            .UseSqlite(
+                connectionString,
+                sqLiteOptions => sqLiteOptions.MigrationsAssembly(GetType().Assembly))
+            // TODO: Remove when https://github.com/dotnet/efcore/pull/35873 is merged & released
             .ConfigureWarnings(warnings =>
-                warnings.Ignore(RelationalEventId.NonTransactionalMigrationOperationWarning));
+                warnings.Ignore(RelationalEventId.NonTransactionalMigrationOperationWarning))
+            .AddInterceptors(new PragmaConnectionInterceptor(
+                _logger,
+                GetOption<int?>(customOptions, "cacheSize", e => int.Parse(e, CultureInfo.InvariantCulture)),
+                GetOption(customOptions, "lockingmode", e => e, () => "NORMAL")!,
+                GetOption(customOptions, "journalsizelimit", int.Parse, () => 134_217_728),
+                GetOption(customOptions, "tempstoremode", int.Parse, () => 2),
+                GetOption(customOptions, "syncmode", int.Parse, () => 1),
+                customOptions?.Where(e => e.Key.StartsWith("#PRAGMA:", StringComparison.OrdinalIgnoreCase)).ToDictionary(e => e.Key["#PRAGMA:".Length..], e => e.Value) ?? []));
+
+        var enableSensitiveDataLogging = GetOption(customOptions, "EnableSensitiveDataLogging", e => e.Equals(bool.TrueString, StringComparison.OrdinalIgnoreCase), () => false);
+        if (enableSensitiveDataLogging)
+        {
+            options.EnableSensitiveDataLogging(enableSensitiveDataLogging);
+            _logger.LogInformation("EnableSensitiveDataLogging is enabled on SQLite connection");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task RunScheduledOptimisation(CancellationToken cancellationToken)
+    {
+        var context = await DbContextFactory!.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using (context.ConfigureAwait(false))
+        {
+            await context.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(TRUNCATE)", cancellationToken).ConfigureAwait(false);
+            await context.Database.ExecuteSqlRawAsync("PRAGMA optimize", cancellationToken).ConfigureAwait(false);
+            await context.Database.ExecuteSqlRawAsync("VACUUM", cancellationToken).ConfigureAwait(false);
+            await context.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(TRUNCATE)", cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("jellyfin.db optimized successfully!");
+        }
     }
 
     /// <inheritdoc/>
@@ -62,47 +116,93 @@ public sealed class SqliteDatabaseProvider : IJellyfinDatabaseProvider
     }
 
     /// <inheritdoc/>
-    public void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
-    {
-        // MySQL에서는 필요 없는 컨벤션일 수 있으나 인터페이스 유지를 위해 남겨둡니다.
-    }
-
-    /// <inheritdoc/>
-    public async Task RunScheduledOptimisation(CancellationToken cancellationToken)
-    {
-        // MySQL 전용 최적화 명령어로 대체 가능 (여기서는 로그만 남김)
-        _logger.LogInformation("RDS MySQL optimization task started.");
-        await Task.CompletedTask;
-    }
-
-    /// <inheritdoc/>
     public async Task RunShutdownTask(CancellationToken cancellationToken)
     {
-        await Task.CompletedTask;
+        if (DbContextFactory is null)
+        {
+            return;
+        }
+
+        // Run before disposing the application
+        var context = await DbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        await using (context.ConfigureAwait(false))
+        {
+            await context.Database.ExecuteSqlRawAsync("PRAGMA optimize", cancellationToken).ConfigureAwait(false);
+        }
+
+        SqliteConnection.ClearAllPools();
+    }
+
+    /// <inheritdoc/>
+    public void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Conventions.Add(_ => new DoNotUseReturningClauseConvention());
     }
 
     /// <inheritdoc />
     public Task<string> MigrationBackupFast(CancellationToken cancellationToken)
     {
-        // RDS는 자체 백업 기능을 사용하므로 더미 값을 반환합니다.
-        return Task.FromResult("RDS_BACKUP");
+        var key = DateTime.UtcNow.ToString("yyyyMMddhhmmss", CultureInfo.InvariantCulture);
+        var path = Path.Combine(_applicationPaths.DataPath, "jellyfin.db");
+        var backupFile = Path.Combine(_applicationPaths.DataPath, BackupFolderName);
+        Directory.CreateDirectory(backupFile);
+
+        backupFile = Path.Combine(backupFile, $"{key}_jellyfin.db");
+        File.Copy(path, backupFile);
+        return Task.FromResult(key);
     }
 
     /// <inheritdoc />
-    public Task RestoreBackupFast(string key, CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task RestoreBackupFast(string key, CancellationToken cancellationToken)
+    {
+        // ensure there are absolutly no dangling Sqlite connections.
+        SqliteConnection.ClearAllPools();
+        var path = Path.Combine(_applicationPaths.DataPath, "jellyfin.db");
+        var backupFile = Path.Combine(_applicationPaths.DataPath, BackupFolderName, $"{key}_jellyfin.db");
+
+        if (!File.Exists(backupFile))
+        {
+            _logger.LogCritical("Tried to restore a backup that does not exist: {Key}", key);
+            return Task.CompletedTask;
+        }
+
+        File.Copy(backupFile, path, true);
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc />
-    public Task DeleteBackup(string key) => Task.CompletedTask;
+    public Task DeleteBackup(string key)
+    {
+        var backupFile = Path.Combine(_applicationPaths.DataPath, BackupFolderName, $"{key}_jellyfin.db");
+
+        if (!File.Exists(backupFile))
+        {
+            _logger.LogCritical("Tried to delete a backup that does not exist: {Key}", key);
+            return Task.CompletedTask;
+        }
+
+        File.Delete(backupFile);
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc/>
     public async Task PurgeDatabase(JellyfinDbContext dbContext, IEnumerable<string>? tableNames)
     {
-        if (tableNames == null) return;
+        ArgumentNullException.ThrowIfNull(tableNames);
 
+        var deleteQueries = new List<string>();
         foreach (var tableName in tableNames)
         {
-            var query = $"DELETE FROM `{tableName}`;";
-            await dbContext.Database.ExecuteSqlRawAsync(query).ConfigureAwait(false);
+            deleteQueries.Add($"DELETE FROM \"{tableName}\";");
         }
+
+        var deleteAllQuery =
+        $"""
+        PRAGMA foreign_keys = OFF;
+        {string.Join('\n', deleteQueries)}
+        PRAGMA foreign_keys = ON;
+        """;
+
+        await dbContext.Database.ExecuteSqlRawAsync(deleteAllQuery).ConfigureAwait(false);
     }
 }

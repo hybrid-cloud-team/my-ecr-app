@@ -1,16 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>CS1591;$(NoWarn)</NoWarn>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Migrations/SqliteDesignTimeJellyfinDbFactory.cs" />
-    <None Include="Migrations/SqliteDesignTimeJellyfinDbFactory.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <Compile Include="..\..\..\SharedVersion.cs" />
@@ -27,8 +21,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
   </ItemGroup>
 
   <ItemGroup>
