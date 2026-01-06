@@ -4,7 +4,7 @@ metadata:
   name: jellyfin
   namespace: jellyfin
 spec:
-  replicas: 1
+  replicas: 2
   revisionHistoryLimit: 1
   strategy:
     type: RollingUpdate
@@ -25,50 +25,9 @@ spec:
       - name: jellyfin
         # 이미지 태그는 GitHub Action에 의해 자동으로 업데이트됩니다.
         image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:2960ddbada664bdaf7c5a099263e6c6e751ee32f
-        imagePullPolicy: Always
-        
-        # ❌ [삭제] 이 args 부분이 문제였습니다! 지워주세요!
-        # args:
-        #   - "--Database:Type=MySql"
-
+        # imagePullPolicy: Always
         ports:
         - containerPort: 8096
-
-        volumeMounts:
-        - name: clean-config-vol
-          mountPath: /config
-
-        env:
-          # ✅ [추가] args 대신 환경변수로 넣어야 서버가 죽지 않고 인식합니다.
-          - name: JELLYFIN_Database__Type
-            value: "MySql"
-            
-          # [유지] 재료 변수들
-          - name: DB_HOST
-            valueFrom:
-              configMapKeyRef:
-                name: rds-config
-                key: DB_HOST
-          - name: DB_NAME
-            valueFrom:
-              configMapKeyRef:
-                name: rds-config
-                key: DB_NAME
-          - name: DB_USER
-            valueFrom:
-              configMapKeyRef:
-                name: rds-config
-                key: DB_USER
-          - name: DB_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: rds-secret
-                key: DB_PASSWORD
-          
-          # [유지] 완성된 연결 문자열
-          - name: JELLYFIN_ConnectionStrings__JellyfinDb
-            value: "Server=$(DB_HOST);Database=$(DB_NAME);User=$(DB_USER);Password=$(DB_PASSWORD);SslMode=None"
-
         resources:
           requests:
             cpu: "300m"
@@ -82,7 +41,20 @@ spec:
           initialDelaySeconds: 20
           periodSeconds: 10
           failureThreshold: 15
-
-      volumes:
-      - name: clean-config-vol
-        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jellyfin-service
+  namespace: jellyfin
+  annotations:
+    # [핵심] 로드밸런서를 인터넷 접속용으로 생성하게 합니다.
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  selector:
+    app: jellyfin
+  ports:
+  - protocol: TCP
+    port: 80         # 브라우저 접속 포트
+    targetPort: 8096 # 젤리핀 서버 포트
+  type: ClusterIP
