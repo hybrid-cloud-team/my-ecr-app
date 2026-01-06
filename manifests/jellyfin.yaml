@@ -23,10 +23,33 @@ spec:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        # 최신 이미지를 사용합니다.
-        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:e114f629c6d9316714d277264a951f3370d68521
+        # 이미지 태그는 GitHub Action에 의해 자동으로 업데이트됩니다.
+        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:4ff852ec2325f7d54239ff61083e8c3d2e39479a
         ports:
         - containerPort: 8096
+        # --- 여기서부터 RDS 환경 변수 추가 ---
+        env:
+          - name: DB_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: rds-config
+                key: DB_HOST
+          - name: DB_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: rds-config
+                key: DB_NAME
+          - name: DB_USER
+            valueFrom:
+              configMapKeyRef:
+                name: rds-config
+                key: DB_USER
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: rds-secret
+                key: DB_PASSWORD
+        # --- 여기까지 추가 ---
         resources:
           requests:
             cpu: "300m"
@@ -47,13 +70,12 @@ metadata:
   name: jellyfin-service
   namespace: jellyfin
   annotations:
-    # [핵심] 로드밸런서를 인터넷 접속용으로 생성하게 합니다.
     service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 spec:
   selector:
     app: jellyfin
   ports:
   - protocol: TCP
-    port: 80         # 브라우저 접속 포트
-    targetPort: 8096 # 젤리핀 서버 포트
+    port: 80
+    targetPort: 8096
   type: ClusterIP
