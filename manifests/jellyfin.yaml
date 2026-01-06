@@ -24,7 +24,7 @@ spec:
       containers:
       - name: jellyfin
         # 이미지 태그는 GitHub Action에 의해 자동으로 업데이트됩니다.
-        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:1a517e87300911921406077737e63b656a9dc4eb
+        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:682c65a053a8239096c0b3af844f28d9868f655b
         imagePullPolicy: Always
         ports:
         - containerPort: 8096
