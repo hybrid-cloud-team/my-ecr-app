@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\..\SharedVersion.cs" />
+    <Compile Remove="Migrations\SqliteDesignTimeJellyfinDbFactory.cs" />
   </ItemGroup>
 
   <ItemGroup>
