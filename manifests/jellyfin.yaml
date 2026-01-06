@@ -24,7 +24,7 @@ spec:
       containers:
       - name: jellyfin
         # 이미지 태그는 GitHub Action에 의해 자동으로 업데이트됩니다.
-        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:4ff852ec2325f7d54239ff61083e8c3d2e39479a
+        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:d3e9eed0d666ebe8bbf9aa9110e413aecfbad066
         ports:
         - containerPort: 8096
         # --- 여기서부터 RDS 환경 변수 추가 ---
