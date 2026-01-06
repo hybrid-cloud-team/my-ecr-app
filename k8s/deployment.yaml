@@ -1,1 +1,41 @@
-
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-ecr-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-ecr-app
+  template:
+    metadata:
+      labels:
+        app: my-ecr-app
+    spec:
+      containers:
+      - name: app-container
+        # 본인의 ECR 주소로 수정 (예: 123456789.dkr.ecr.us-east-1.amazonaws.com/my-ecr-app:latest)
+        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:latest
+        ports:
+        - containerPort: 80
+        env:
+          - name: DB_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: rds-config
+                key: DB_HOST
+          - name: DB_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: rds-config
+                key: DB_NAME
+          - name: DB_USER
+            valueFrom:
+              configMapKeyRef:
+                name: rds-config
+                key: DB_USER
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: rds-secret
+                key: DB_PASSWORD
