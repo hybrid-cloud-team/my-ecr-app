@@ -67,8 +67,9 @@ def presign(key: str):
         raise HTTPException(status_code=400, detail="key is required")
 
     url = s3.generate_presigned_url(
+        ClientMethod="put_object",     # ✅ 업로드용
         "get_object",
         Params={"Bucket": BUCKET, "Key": key},
-        ExpiresIn=PRESIGN_EXPIRE,
+        HttpMethod="PUT",              # ✅ PUT로 서명 강제
     )
     return {"url": url, "expires_in": PRESIGN_EXPIRE}
