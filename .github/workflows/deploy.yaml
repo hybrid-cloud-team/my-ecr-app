@@ -3,21 +3,20 @@ name: Build and Update GitOps Repo
 on:
   push:
     branches: ["main"]
-    paths-ignore:
-      - "manifests/**"
+    # [수정] 무한 루프 방지를 위해 paths-ignore 대신 커밋 메시지 제어를 사용합니다.
+    # 이제 소스 코드 수정을 포함한 모든 푸시가 빌드를 시작합니다.
 
 jobs:
   ci-cd:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write   # ✅ AWS OIDC
+      id-token: write
 
     env:
       AWS_REGION: us-east-1
       ECR_REPOSITORY: jellyfin
       IMAGE_TAG: ${{ github.sha }}
-
       DEPLOY_REPO: hybrid-cloud-team/my-ecr-app
       DEPLOY_BRANCH: main
       MANIFEST_PATH: manifests/jellyfin.yaml
@@ -46,7 +45,6 @@ jobs:
           docker push "$IMAGE"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
-      # ✅ PAT 없이 GitHub App으로 토큰 발급
       - name: Create GitHub App token
         id: app-token
         uses: actions/create-github-app-token@v1
@@ -60,7 +58,7 @@ jobs:
         with:
           repository: ${{ env.DEPLOY_REPO }}
           ref: ${{ env.DEPLOY_BRANCH }}
-          token: ${{ steps.app-token.outputs.token }}   # ✅ 여기!
+          token: ${{ steps.app-token.outputs.token }}
           path: deploy-repo
           fetch-depth: 0
 
@@ -70,11 +68,18 @@ jobs:
           git config user.email "action@github.com"
           git config user.name "GitOps Bot"
 
+          # 이미지 태그 업데이트
           sed -i "s|image: .*|image: ${{ steps.build-image.outputs.image }}|g" "${MANIFEST_PATH}"
+          
+          # EKS가 새 이미지를 강제로 가져오도록 설정 (없으면 추가)
+          if ! grep -q "imagePullPolicy" "${MANIFEST_PATH}"; then
+            sed -i "/image: /a \        imagePullPolicy: Always" "${MANIFEST_PATH}"
+          fi
 
           git add "${MANIFEST_PATH}"
           if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "Update jellyfin image to ${{ github.sha }}"
+            # [핵심] 커밋 메시지에 [skip ci]를 넣어 무한 루프를 원천 봉쇄합니다.
+            git commit -m "Update jellyfin image to ${{ github.sha }} [skip ci]"
             git push origin "${DEPLOY_BRANCH}"
           else
             echo "No changes to commit"
