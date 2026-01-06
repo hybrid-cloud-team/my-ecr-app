@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rds-config
+data:
+  DB_HOST: "my-app-db.c8bacacucmpz.us-east-1.rds.amazonaws.com"
+  DB_NAME: "jellyfin"  # RDS 생성 시 설정한 초기 데이터베이스 이름
+  DB_USER: "admin"
