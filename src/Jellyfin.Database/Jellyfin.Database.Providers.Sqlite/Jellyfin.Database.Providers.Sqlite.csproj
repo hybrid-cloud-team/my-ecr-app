@@ -27,7 +27,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" VersionOverride="9.0.0-preview.2.efcore.9.0.0" />
+
+    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
   </ItemGroup>
 
   <ItemGroup>
