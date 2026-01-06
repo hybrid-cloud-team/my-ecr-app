@@ -39,4 +39,5 @@ ENV ASPNETCORE_URLS=http://+:8096
 RUN mkdir -p /config /cache /media
 EXPOSE 8096
 
-ENTRYPOINT ["dotnet", "jellyfin.dll"]
+# [★핵심 수정] 실행할 파일 이름을 대문자 버전으로 변경
+ENTRYPOINT ["dotnet", "Jellyfin.Server.dll"]
