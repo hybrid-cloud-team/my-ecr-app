@@ -4,7 +4,6 @@ metadata:
   name: jellyfin
   namespace: jellyfin
 spec:
-  # [유지] 초기화 충돌 방지를 위해 1개로 시작
   replicas: 1
   revisionHistoryLimit: 1
   strategy:
@@ -25,19 +24,22 @@ spec:
       containers:
       - name: jellyfin
         # 이미지 태그는 GitHub Action에 의해 자동으로 업데이트됩니다.
-        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:3a5e28b6936bcc12fff2b1023ccfa506b6ccbbe3
+        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:06401d5960830518ac561843e5ad8193a972358a
         imagePullPolicy: Always
+        
+        # [핵심 추가] 이 한 줄이 젤리핀을 강제로 MySQL 모드로 전환합니다.
+        args:
+          - "--Database:Type=MySql"
+
         ports:
         - containerPort: 8096
 
-        # [유지] /config 경로를 빈 볼륨으로 덮어씌움
         volumeMounts:
         - name: clean-config-vol
           mountPath: /config
 
-        # --- [핵심] RDS 연결 설정 (순서 중요) ---
         env:
-          # 1. 재료가 되는 변수들을 먼저 정의합니다.
+          # [유지] 재료 변수들
           - name: DB_HOST
             valueFrom:
               configMapKeyRef:
@@ -59,16 +61,11 @@ spec:
                 name: rds-secret
                 key: DB_PASSWORD
           
-          # 2. DB 타입을 MySQL로 강제 지정
-          - name: JELLYFIN_Database__Type
-            value: "MySql"
-
-          # 3. [필살기] 위 변수들을 조합해 완성된 연결 문자열을 직접 주입
-          # SslMode=None을 추가하여 인증서 오류를 방지합니다.
+          # [유지] 완성된 연결 문자열 (이건 잘 작동했습니다)
           - name: JELLYFIN_ConnectionStrings__JellyfinDb
-            value: "Server=$(DB_HOST);Database=$(DB_NAME);User=$(DB_USER);Password=$(DB_PASSWORD);SslMode=None;"
-        # --- 여기까지 ---
-        
+            value: "Server=$(DB_HOST);Database=$(DB_NAME);User=$(DB_USER);Password=$(DB_PASSWORD);SslMode=None"
+            # (끝에 세미콜론 제거함: 더 안전함)
+
         resources:
           requests:
             cpu: "300m"
@@ -83,7 +80,6 @@ spec:
           periodSeconds: 10
           failureThreshold: 15
 
-      # [유지] 빈 볼륨 생성
       volumes:
       - name: clean-config-vol
         emptyDir: {}
