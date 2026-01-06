@@ -2,14 +2,18 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-env
 WORKDIR /app
 
-# 모든 소스 복사
+# 모든 소스 복사 (이때 내 PC에 있던 임시 파일들도 같이 들어옵니다)
 COPY . ./
 
-# [핵심 1] 에러 주범 파일 삭제
+# [🔥🔥🔥 긴급 처방] 복사된 파일들 사이에서 'obj'와 'bin' 폴더를 찾아내 강제로 삭제합니다.
+# 이렇게 하면 과거 빌드 기록(8.0.2 참조)이 싹 사라지고 100% 깨끗한 상태에서 시작합니다.
+RUN find . -type d \( -name "obj" -o -name "bin" \) -exec rm -rf {} +
+
+# [기존 조치 1] 에러 유발 설계용 파일 물리적 삭제
 RUN rm -f src/Jellyfin.Database/Jellyfin.Database.Providers.Sqlite/Migrations/SqliteDesignTimeJellyfinDbFactory.cs
 
-# [핵심 2] 빌드 실행 (문법 수정됨)
-# 세미콜론(;) 대신 %3B를 사용하여 셸이 명령어를 쪼개는 것을 방지합니다.
+# [기존 조치 2] 빌드 실행
+# (문법 수정됨: 세미콜론 대신 %3B 사용, 경고 무시 옵션 포함)
 RUN dotnet publish Jellyfin.Server/Jellyfin.Server.csproj \
     -c Release \
     -o /app/out \
