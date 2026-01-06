@@ -97,9 +97,6 @@ jobs:
           
           # ✅ media-api 업데이트 (추가)
           sed -i "s|image: .*|image: ${{ steps.build-media-api.outputs.image }}|g" "${MEDIA_MANIFEST_PATH}"
-          if ! grep -q "imagePullPolicy" "${MEDIA_MANIFEST_PATH}"; then
-            sed -i "/image: /a \        imagePullPolicy: Always" "${MEDIA_MANIFEST_PATH}"
-          fi
 
           git add "${MANIFEST_PATH}" "${MEDIA_MANIFEST_PATH}"
           # [무한루프방지] 커밋 메시지에 [skip ci] 추가
