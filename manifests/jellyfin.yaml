@@ -28,6 +28,12 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8096
+
+        # [추가] 1. /config 경로를 빈 볼륨으로 덮어씌워서 초기화 상태로 만듦
+        volumeMounts:
+        - name: clean-config-vol
+          mountPath: /config
+
         # --- 여기서부터 RDS 환경 변수 추가 ---
         env:
           - name: DB_HOST
@@ -64,6 +70,11 @@ spec:
           initialDelaySeconds: 20
           periodSeconds: 10
           failureThreshold: 15
+
+      # [추가] 2. 파드가 생성될 때마다 깨끗한 빈 볼륨 생성
+      volumes:
+      - name: clean-config-vol
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
