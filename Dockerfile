@@ -5,12 +5,14 @@ WORKDIR /app
 # 모든 소스 복사
 COPY . ./
 
-# [핵심] 에러의 주범인 파일을 빌드 직전에 물리적으로 삭제합니다. 
-# 이 파일은 런타임에 필요 없으므로 삭제해도 안전합니다.
+# [핵심 1] 에러를 내는 설계용 파일을 물리적으로 삭제
 RUN rm -f src/Jellyfin.Database/Jellyfin.Database.Providers.Sqlite/Migrations/SqliteDesignTimeJellyfinDbFactory.cs
 
-# 의존성 복원 및 빌드
-RUN dotnet restore Jellyfin.Server/Jellyfin.Server.csproj
+# [핵심 2] 중앙 관리 시스템(CPM)을 무시하고 MySQL 패키지를 강제로 설치/업데이트
+RUN dotnet add Jellyfin.Server/Jellyfin.Server.csproj package Pomelo.EntityFrameworkCore.MySql --version 8.0.2
+RUN dotnet add src/Jellyfin.Database/Jellyfin.Database.Providers.Sqlite/Jellyfin.Database.Providers.Sqlite.csproj package Pomelo.EntityFrameworkCore.MySql --version 8.0.2
+
+# 빌드 실행
 RUN dotnet publish Jellyfin.Server/Jellyfin.Server.csproj -c Release -o /app/out
 
 # 2. 실행 스테이지
