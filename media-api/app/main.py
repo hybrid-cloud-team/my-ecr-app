@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 import boto3
 from botocore.config import Config
+from fastapi.staticfiles import StaticFiles
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 BUCKET = os.getenv("S3_BUCKET", "")
@@ -97,3 +98,5 @@ def presign_get(
 def complete(key: str):
     key = _safe_key(key)
     return {"ok": True, "key": key, "ts": datetime.utcnow().isoformat()}
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
