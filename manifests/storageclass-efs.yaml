@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-jellyfin-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-01098d45c98ce2d6c
+  basePath: "/jellyfin"
+  directoryPerms: "777"
+reclaimPolicy: Retain
+volumeBindingMode: Immediate

@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Media Upload (Presigned PUT)</title>
+</head>
+<body>
+  <h2>Upload to S3 via Presigned PUT</h2>
+
+  <label>Media API Base URL:</label>
+  <input id="apiBase" style="width:520px" value="http://YOUR_MEDIA_API_DOMAIN_OR_ALB" />
+  <br/><br/>
+
+  <input id="file" type="file" />
+  <button id="btn">Upload</button>
+
+  <pre id="log" style="background:#111;color:#0f0;padding:12px;white-space:pre-wrap;"></pre>
+
+<script>
+const log = (m) => document.getElementById("log").textContent += m + "\n";
+
+document.getElementById("btn").onclick = async () => {
+  const apiBase = document.getElementById("apiBase").value.replace(/\/+$/, "");
+  const f = document.getElementById("file").files[0];
+  if (!f) { alert("choose a file"); return; }
+
+  log("1) Request presign-put...");
+  const presignUrl = `${apiBase}/presign-put?filename=${encodeURIComponent(f.name)}&contentType=${encodeURIComponent(f.type || "application/octet-stream")}`;
+  const pres = await fetch(presignUrl);
+  if (!pres.ok) {
+    log("presign failed: " + pres.status);
+    log(await pres.text());
+    return;
+  }
+  const data = await pres.json();
+  log("presign ok:");
+  log(JSON.stringify(data, null, 2));
+
+  log("2) PUT to S3...");
+  const putRes = await fetch(data.url, {
+    method: "PUT",
+    headers: { "Content-Type": data.required_headers["Content-Type"] },
+    body: f
+  });
+
+  log("PUT status: " + putRes.status);
+  if (!putRes.ok) {
+    log(await putRes.text());
+    return;
+  }
+
+  log("3) Done. Uploaded key = " + data.key);
+
+  // (선택) 업로드 완료 알림
+  // await fetch(`${apiBase}/complete`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({key:data.key})});
+};
+</script>
+</body>
+</html>

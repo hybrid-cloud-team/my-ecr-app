@@ -28,6 +28,11 @@ spec:
         # imagePullPolicy: Always
         ports:
         - containerPort: 8096
+        volumeMounts:
+        - name: jellyfin-config
+          mountPath: /config
+        - name: jellyfin-media
+          mountPath: /media
         resources:
           requests:
             cpu: "300m"
@@ -41,6 +46,13 @@ spec:
           initialDelaySeconds: 20
           periodSeconds: 10
           failureThreshold: 15
+      volumes:
+      - name: jellyfin-config
+        persistentVolumeClaim:
+          claimName: jellyfin-config-efs
+      - name: jellyfin-media
+        persistentVolumeClaim:
+          claimName: jellyfin-media-pvc
 ---
 apiVersion: v1
 kind: Service

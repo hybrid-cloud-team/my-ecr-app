@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: s3-to-jellyfin-sync
+  namespace: jellyfin
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: media-sync-sa
+          restartPolicy: Never
+          containers:
+          - name: sync
+            image: amazon/aws-cli:2
+            command: ["/bin/sh","-lc"]
+            args:
+              - aws s3 sync s3://jellyfin-media-bucket-idac-01/uploads/raw/ /media/raw/
+            volumeMounts:
+            - name: media
+              mountPath: /media
+          volumes:
+          - name: media
+            persistentVolumeClaim:
+              claimName: jellyfin-media-pvc
