@@ -13,7 +13,7 @@ spec:
           restartPolicy: Never
           containers:
           - name: sync
-            image: amazon/aws-cli:2
+            image: public.ecr.aws/aws-cli/aws-cli:2
             command: ["/bin/sh","-lc"]
             args:
               - aws s3 sync s3://jellyfin-media-bucket-idac-01/uploads/raw/ /media/raw/
