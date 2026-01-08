@@ -9,6 +9,9 @@ spec:
     spec:
       template:
         spec:
+          concurrencyPolicy: Forbid
+          successfulJobsHistoryLimit: 1
+          failedJobsHistoryLimit: 2
           serviceAccountName: media-sync-sa
           restartPolicy: Never
           containers:
