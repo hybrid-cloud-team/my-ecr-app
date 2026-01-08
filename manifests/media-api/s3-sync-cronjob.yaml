@@ -5,13 +5,16 @@ metadata:
   namespace: jellyfin
 spec:
   schedule: "*/5 * * * *"
+
+  # ✅ CronJob 레벨에 있어야 함
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+
   jobTemplate:
     spec:
       template:
         spec:
-          concurrencyPolicy: Forbid
-          successfulJobsHistoryLimit: 1
-          failedJobsHistoryLimit: 2
           serviceAccountName: media-sync-sa
           restartPolicy: Never
           containers:
