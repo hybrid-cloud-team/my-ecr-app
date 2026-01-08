@@ -16,7 +16,7 @@ spec:
       serviceAccountName: media-api-sa
       containers:
         - name: media-api
-          image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin-media-api:9b65a3741a0c47e95b91c79286e86d06207346ea
+          image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin-media-api:6a70951f7135d82712b1c2ade46fd1dc90d29933
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
