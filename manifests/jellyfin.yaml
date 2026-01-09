@@ -4,7 +4,7 @@ metadata:
   name: jellyfin
   namespace: jellyfin
 spec:
-  replicas: 2
+  replicas: 2  # ✅ 이제 2개 이상으로 늘려도 안전합니다!
   revisionHistoryLimit: 1
   strategy:
     type: RollingUpdate
@@ -21,41 +21,43 @@ spec:
     spec:
       nodeSelector:
         eks.amazonaws.com/nodegroup: eks-app-node
+      
+      # ✅ [1. 초기화 컨테이너 추가] 파드 시작 전 DB 복사 작업 수행
+      initContainers:
+      - name: init-config-loader
+        image: alpine:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Initializing config..."
+            # EFS(원본)에서 파드 내부(임시공간)로 설정 파일 복사
+            if [ "$(ls -A /mnt/source)" ]; then
+              cp -a /mnt/source/. /config/
+              echo "Config copied from EFS."
+            else
+              echo "Warning: Source is empty. Starting fresh."
+            fi
+            # 권한 강제 설정 (젤리핀 UID: 1000)
+            chown -R 1000:1000 /config
+        volumeMounts:
+        - name: jellyfin-config-efs  # 원본 (EFS)
+          mountPath: /mnt/source     # 여기는 읽기 전용으로 씀
+        - name: jellyfin-config-local # 복사본 (임시공간)
+          mountPath: /config
+
       containers:
       - name: jellyfin
-        # ⚠️ 중요: 이 이미지는 구버전(10.7.x 기반)일 가능성이 높습니다. 
-        # 최신 버전(10.9+)의 config 파일을 마운트하면 충돌날 수 있으니 주의하세요.
         image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:1b2e822a9deeb53a649497984678b02c846d0b27
         imagePullPolicy: Always
-        
-        # ✅ [여기부터 추가] DB 연결 설정 시작
-        env:
-        # 1. DB 종류를 PostgreSQL로 강제 지정
-        - name: JELLYFIN_Database__Provider
-          value: "PostgreSQL"
-          
-        # 2. AWS RDS 연결 정보 입력 (아래 3곳을 실제 값으로 수정하세요)
-        # Server: AWS RDS 엔드포인트 주소
-        # User Id: 마스터 사용자 ID (예: jellyfin)
-        # Password: 마스터 비밀번호
-        - name: JELLYFIN_ConnectionStrings__DefaultConnection
-          value: "Server=jellyfin-database-1.c8bacacucmpz.us-east-1.rds.amazonaws.com;Port=5432;Database=jellyfin;User Id=jellyfin;Password=12345678;"
-          
-        # 3. 최초 실행 시 테이블 생성 (마이그레이션) 허용
-        - name: JELLYFIN_RunMigrations
-          value: "true"
-        # ✅ [여기까지 추가] DB 연결 설정 끝
-
         ports:
         - containerPort: 8096
         
+        # ✅ [2. 볼륨 마운트 변경] EFS 직접 연결 끊고 임시 공간 사용
         volumeMounts:
-        - name: jellyfin-config
+        - name: jellyfin-config-local  # ⚠️ 중요: EFS가 아닌 복사된 임시공간을 바라봄
           mountPath: /config
         - name: jellyfin-media
           mountPath: /media
-        
-        # [성능 최적화] 임시 볼륨 사용 (잘 하셨습니다!)
         - name: jellyfin-cache
           mountPath: /config/cache
         - name: jellyfin-transcodes
@@ -74,19 +76,23 @@ spec:
           initialDelaySeconds: 20
           periodSeconds: 10
           failureThreshold: 15
+
       volumes:
-      - name: jellyfin-config
-        persistentVolumeClaim:
-          # ⚠️ 주의: 기존 SQLite 설정파일이 남아있으면 충돌날 수 있습니다.
-          # 문제가 생기면 PVC를 비우거나 새 PVC를 연결하는 것을 권장합니다.
-          claimName: jellyfin-config-efs
+      # ✅ [3. 볼륨 정의]
       - name: jellyfin-media
         persistentVolumeClaim:
           claimName: jellyfin-media-pvc
-      
-      # 캐시/트랜스코딩용 임시 디스크
+
+      - name: jellyfin-config-efs # 원본 데이터 (EFS)
+        persistentVolumeClaim:
+          claimName: jellyfin-config-efs
+
+      - name: jellyfin-config-local # 각 파드가 쓸 임시 공간 (여기에 복사됨)
+        emptyDir: {}
+
       - name: jellyfin-cache
         emptyDir: {}
+        
       - name: jellyfin-transcodes
         emptyDir: {}
 
@@ -96,9 +102,17 @@ kind: Service
 metadata:
   name: jellyfin-service
   namespace: jellyfin
+  # LoadBalancer 사용 시 필요하면 주석 해제
+  # annotations:
+  #   service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 spec:
   selector:
     app: jellyfin
+  # ✅ [4. 세션 고정 추가] 로그인 풀림 방지 (필수!)
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800 # 3시간
   ports:
   - protocol: TCP
     port: 80
