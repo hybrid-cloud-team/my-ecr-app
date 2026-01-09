@@ -1,5 +1,5 @@
 # 젤리핀 공식 이미지를 베이스로 사용
-FROM ghcr.io/joshuaboniface/jellyfin:rdb
+FROM docker.io/joshuaboniface/jellyfin:rdb
 
 # EKS 환경에 맞게 포트 설정만 열어줍니다.
 ENV ASPNETCORE_URLS=http://+:8096
