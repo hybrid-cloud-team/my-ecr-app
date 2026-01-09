@@ -23,9 +23,7 @@ spec:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        # 이미지 태그는 GitHub Action에 의해 자동으로 업데이트됩니다.
         image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:d23501114b7e5b1ad9a3fd843cd85b6ea5a874d1
-        # imagePullPolicy: Always
         ports:
         - containerPort: 8096
         volumeMounts:
@@ -33,6 +31,14 @@ spec:
           mountPath: /config
         - name: jellyfin-media
           mountPath: /media
+        
+        # [추가] 쓰기 작업이 많은 캐시와 트랜스코딩은 EFS가 아닌 임시 볼륨 사용
+        # 이렇게 하면 SQLite가 있는 /config 루트의 부하가 줄어듭니다.
+        - name: jellyfin-cache
+          mountPath: /config/cache
+        - name: jellyfin-transcodes
+          mountPath: /config/transcodes
+
         resources:
           requests:
             cpu: "300m"
@@ -53,20 +59,25 @@ spec:
       - name: jellyfin-media
         persistentVolumeClaim:
           claimName: jellyfin-media-pvc
+      
+      # [추가] 파드가 죽으면 날아가도 되는 데이터는 emptyDir 사용 (RAM/Node Disk)
+      - name: jellyfin-cache
+        emptyDir: {}
+      - name: jellyfin-transcodes
+        emptyDir: {}
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: jellyfin-service
   namespace: jellyfin
-  annotations:
-    # [핵심] 로드밸런서를 인터넷 접속용으로 생성하게 합니다.
-    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+  # ClusterIP 서비스에는 LB 관련 annotation이 필요 없습니다. (Ingress에서 처리)
 spec:
   selector:
     app: jellyfin
   ports:
   - protocol: TCP
-    port: 80         # 브라우저 접속 포트
-    targetPort: 8096 # 젤리핀 서버 포트
+    port: 80
+    targetPort: 8096
   type: ClusterIP
