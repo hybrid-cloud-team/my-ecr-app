@@ -1,0 +1,60 @@
+# 1. 실행할 SQL 명령어를 담은 ConfigMap (쪽지)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-init-script
+  namespace: jellyfin
+data:
+  init.sql: |
+    -- public 스키마 권한 부여 (PostgreSQL 15+ 대응)
+    GRANT ALL ON SCHEMA public TO jellyfin;
+
+    -- 마이그레이션 히스토리 테이블 강제 생성 (Jellyfin 에러 방지용)
+    CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+        "MigrationId" varchar(150) NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+        "ProductVersion" varchar(32) NOT NULL
+    );
+
+    -- 확인용 메시지 출력
+    SELECT 'Initialization Complete!' as status;
+
+---
+# 2. 실제로 작업을 수행할 Job (일꾼)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: jellyfin-db-init-job
+  namespace: jellyfin
+spec:
+  ttlSecondsAfterFinished: 300 # 작업 끝나고 5분 뒤에 자동 삭제
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: db-init
+        image: postgres:alpine # 가벼운 psql 클라이언트 이미지 사용
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "Connecting to DB..."
+            PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f /scripts/init.sql
+        
+        env:
+        # 👇 여기에 RDS 정보를 입력하세요
+        - name: DB_HOST
+          value: "jellyfin-database-1.c8bacacucmpz.us-east-1.rds.amazonaws.com" # RDS 엔드포인트
+        - name: DB_USER
+          value: "jellyfin"
+        - name: DB_NAME
+          value: "jellyfin"
+        - name: DB_PASSWORD
+          value: "12345678" 
+
+        volumeMounts:
+        - name: sql-script
+          mountPath: /scripts
+      
+      volumes:
+      - name: sql-script
+        configMap:
+          name: db-init-script
