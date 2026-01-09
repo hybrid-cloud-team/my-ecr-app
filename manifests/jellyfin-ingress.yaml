@@ -8,6 +8,7 @@ metadata:
 
     # ALB 설정
     alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400
     alb.ingress.kubernetes.io/target-type: ip
     # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
 
