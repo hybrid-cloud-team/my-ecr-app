@@ -23,7 +23,8 @@ spec:
         eks.amazonaws.com/nodegroup: eks-app-node
       containers:
       - name: jellyfin
-        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:d23501114b7e5b1ad9a3fd843cd85b6ea5a874d1
+        image: 635014547592.dkr.ecr.us-east-1.amazonaws.com/jellyfin:a1488270f87e2d3d15de9c9ba777c47dee48cb6a
+        imagePullPolicy: Always
         ports:
         - containerPort: 8096
         volumeMounts:
