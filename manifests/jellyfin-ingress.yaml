@@ -8,7 +8,10 @@ metadata:
 
     # ALB 설정
     alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=86400
+    
+    # 👇 [수정됨] 86400(1일) -> 604800(7일)로 변경 (AWS ALB 기술적 한계치)
+    alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=604800
+    
     alb.ingress.kubernetes.io/target-type: ip
     # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
 
