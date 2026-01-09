@@ -1,0 +1,74 @@
+# PostgreSQL 데이터베이스 설정 예시
+# 이 파일은 Jellyfin이 PostgreSQL을 사용하도록 설정합니다.
+
+# 1. ConfigMap: 데이터베이스 연결 정보 (비밀번호 제외)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jellyfin-db-config
+  namespace: jellyfin
+data:
+  # Jellyfin은 database.xml 파일을 사용하여 데이터베이스 설정을 저장합니다.
+  # 이 ConfigMap은 환경 변수로도 사용할 수 있습니다.
+  JELLYFIN_DATABASE_TYPE: "Jellyfin-PostgreSQL"
+  JELLYFIN_DATABASE_HOST: "jellyfin-database-1.c8bacacucmpz.us-east-1.rds.amazonaws.com"
+  JELLYFIN_DATABASE_PORT: "5432"
+  JELLYFIN_DATABASE_NAME: "jellyfin"
+  JELLYFIN_DATABASE_USERNAME: "jellyfin"
+  # 참고: 비밀번호는 Secret에 저장해야 합니다.
+
+---
+# 2. Secret: 데이터베이스 비밀번호
+apiVersion: v1
+kind: Secret
+metadata:
+  name: jellyfin-db-secret
+  namespace: jellyfin
+type: Opaque
+stringData:
+  JELLYFIN_DATABASE_PASSWORD: "12345678"  # 실제 비밀번호로 변경하세요
+
+---
+# 3. Jellyfin Deployment에 환경 변수 추가 예시
+# (기존 Deployment에 추가하세요)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jellyfin
+  namespace: jellyfin
+spec:
+  template:
+    spec:
+      containers:
+      - name: jellyfin
+        env:
+        - name: JELLYFIN_DATABASE_TYPE
+          valueFrom:
+            configMapKeyRef:
+              name: jellyfin-db-config
+              key: JELLYFIN_DATABASE_TYPE
+        - name: JELLYFIN_DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: jellyfin-db-config
+              key: JELLYFIN_DATABASE_HOST
+        - name: JELLYFIN_DATABASE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: jellyfin-db-config
+              key: JELLYFIN_DATABASE_PORT
+        - name: JELLYFIN_DATABASE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: jellyfin-db-config
+              key: JELLYFIN_DATABASE_NAME
+        - name: JELLYFIN_DATABASE_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: jellyfin-db-config
+              key: JELLYFIN_DATABASE_USERNAME
+        - name: JELLYFIN_DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: jellyfin-db-secret
+              key: JELLYFIN_DATABASE_PASSWORD
